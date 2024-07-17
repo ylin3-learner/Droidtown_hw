@@ -13,7 +13,7 @@ from articut_manager import AccountManager, ArticutManager
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-def main(target_url, filename, link_locator=None, limit=None, directory=None):
+def main(target_url, filename, link_locator=None, limit=None, directory="data"):
     try:
         logger.info(f"Initializing WebDriver for URL: {target_url}")
         target_initializer = WebDriverInitializer(url=target_url)
@@ -40,7 +40,8 @@ def main(target_url, filename, link_locator=None, limit=None, directory=None):
             driver=target_driver, locator=link_locator)
 
         # Explicit wait for the presence of links
-        wait = WebDriverWait(target_driver, 10)  # Wait up to 10 seconds
+        # Wait up to 20 seconds (adjust as needed)
+        wait = WebDriverWait(target_driver, 20)
         element_present = EC.presence_of_all_elements_located(
             (By.XPATH, clicker.locator))
         wait.until(element_present)
@@ -57,13 +58,16 @@ def main(target_url, filename, link_locator=None, limit=None, directory=None):
         results = []
         for link in links:
             try:
-                # Ensure correct locator_key is passed
-                result = news_parser.parse(url=link, locator_key="default")
-                if result:
-                    results.append(result)
-                    crawled_links_logger.write_crawled_link(link)
+                if news_parser.get_page_with_retries(url=link):
+
+                    result = news_parser.parse(
+                        url=link, locator_key="default")
+                    if result:
+                        results.append(result)
+                        crawled_links_logger.write_crawled_link(link)
             except Exception as e:
-                logger.error(f"Failed to parse content for {link}: {str(e)}")
+                logger.error(f"Failed to load {
+                             link} after multiple attempts: {str(e)}")
 
         logger.info(f"Results collected for {filename}: {results}")
         full_path = news_parser.save_results_to_json(
